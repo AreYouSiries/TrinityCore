@@ -620,7 +620,7 @@ bool Unit::HasAuraTypeWithFamilyFlags(AuraType auraType, uint32 familyName, uint
 
 void Unit::DealDamageMods(Unit* victim, uint32 &damage, uint32* absorb)
 {
-    if (!victim->isAlive() || victim->HasUnitState(UNIT_STAT_IN_FLIGHT) || (victim->GetTypeId() == TYPEID_UNIT && victim->ToCreature()->IsInEvadeMode()))
+    if (!victim || !victim->isAlive() || victim->HasUnitState(UNIT_STAT_IN_FLIGHT) || (victim->GetTypeId() == TYPEID_UNIT && victim->ToCreature()->IsInEvadeMode()))
     {
         if (absorb)
             *absorb += damage;
@@ -4980,10 +4980,6 @@ bool Unit::HandleHasteAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
         return false;
     }
 
-    // default case
-    if ((!target && triggerEntry->IsRequiringSelectedTarget()) || (target && target != this && !target->isAlive()))
-        return false;
-
     if (cooldown && GetTypeId() == TYPEID_PLAYER && ToPlayer()->HasSpellCooldown(triggered_spell_id))
         return false;
 
@@ -7769,10 +7765,6 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
         return false;
     }
 
-    // default case
-    if ((!target && triggerEntry->IsRequiringSelectedTarget()) || (target && target != this && !target->isAlive()))
-        return false;
-
     if (cooldown_spell_id == 0)
         cooldown_spell_id = triggered_spell_id;
 
@@ -7831,10 +7823,6 @@ bool Unit::HandleObsModEnergyAuraProc(Unit* victim, uint32 /*damage*/, AuraEffec
         return false;
     }
 
-    // default case
-    if ((!target && triggerEntry->IsRequiringSelectedTarget()) || (target && target != this && !target->isAlive()))
-        return false;
-
     if (cooldown && GetTypeId() == TYPEID_PLAYER && ToPlayer()->HasSpellCooldown(triggered_spell_id))
         return false;
     if (basepoints0)
@@ -7887,10 +7875,6 @@ bool Unit::HandleModDamagePctTakenAuraProc(Unit* victim, uint32 /*damage*/, Aura
         sLog->outError("Unit::HandleModDamagePctTakenAuraProc: Spell %u have not existed triggered spell %u", dummySpell->Id, triggered_spell_id);
         return false;
     }
-
-    // default case
-    if ((!target && triggerEntry->IsRequiringSelectedTarget()) || (target && target != this && !target->isAlive()))
-        return false;
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER && ToPlayer()->HasSpellCooldown(triggered_spell_id))
         return false;
@@ -8054,6 +8038,10 @@ bool Unit::HandleAuraProc(Unit* victim, uint32 damage, Aura* triggeredByAura, Sp
                     if (plr->getClass() != CLASS_DEATH_KNIGHT)
                         return false;
 
+                    RuneType rune = ToPlayer()->GetLastUsedRune();
+                    // can't proc from death rune use
+                    if (rune == RUNE_DEATH)
+                        return false;
                     AuraEffect* aurEff = triggeredByAura->GetEffect(EFFECT_0);
                     if (!aurEff)
                         return false;
@@ -9073,10 +9061,6 @@ bool Unit::HandleProcTriggerSpell(Unit* victim, uint32 damage, AuraEffect* trigg
     // try detect target manually if not set
     if (target == NULL)
         target = !(procFlags & (PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_POS | PROC_FLAG_DONE_SPELL_NONE_DMG_CLASS_POS)) && triggerEntry && triggerEntry->IsPositive() ? this : victim;
-
-    // default case
-    if ((!target && triggerEntry->IsRequiringSelectedTarget()) || (target && target != this && !target->isAlive()))
-        return false;
 
     if (basepoints0)
         CastCustomSpell(target, trigger_spell_id, &basepoints0, NULL, NULL, true, castItem, triggeredByAura);
@@ -13289,7 +13273,8 @@ float Unit::GetSpellMaxRangeForTarget(Unit* target, SpellInfo const* spellInfo)
     if (spellInfo->RangeEntry->maxRangeFriend == spellInfo->RangeEntry->maxRangeHostile)
         return spellInfo->GetMaxRange();
     return spellInfo->GetMaxRange(!IsHostileTo(target));
-};
+}
+
 float Unit::GetSpellMinRangeForTarget(Unit* target, SpellInfo const* spellInfo)
 {
     if (!spellInfo->RangeEntry)
@@ -13297,7 +13282,7 @@ float Unit::GetSpellMinRangeForTarget(Unit* target, SpellInfo const* spellInfo)
     if (spellInfo->RangeEntry->minRangeFriend == spellInfo->RangeEntry->minRangeHostile)
         return spellInfo->GetMinRange();
     return spellInfo->GetMinRange(!IsHostileTo(target));
-};
+}
 
 Unit* Unit::GetUnit(WorldObject& object, uint64 guid)
 {
